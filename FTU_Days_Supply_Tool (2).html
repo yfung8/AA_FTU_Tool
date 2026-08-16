@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FTU Days' Supply Auditing Tool</title>
+<style>
+  :root{
+    --navy:#1F4E5F; --navy-dark:#153742; --teal:#2E8B8B; --bg:#F4F6F7; --card:#FFFFFF;
+    --border:#DCE3E5; --text:#222; --muted:#667; --green:#2E7D32; --green-bg:#E8F5E9;
+    --amber:#B8860B; --amber-bg:#FFF8E1; --orange:#C0621E; --orange-bg:#FFF1E0;
+    --red:#B3261E; --red-bg:#FCE8E6; --blue-bg:#E3F0F6;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:0;font-size:13.5px;}
+  header{background:var(--navy);color:#fff;padding:12px 22px;}
+  header h1{margin:0;font-size:17px;font-weight:600;}
+  header p{margin:2px 0 0;font-size:11.5px;color:#cfe3e6;}
+  #banner{display:none;background:var(--red-bg);color:var(--red);border-bottom:1px solid var(--red);padding:8px 22px;font-size:12.5px;}
+  nav{display:flex;background:var(--navy-dark);}
+  nav button{flex:none;background:none;border:none;color:#cfe3e6;padding:9px 16px;font-size:13px;cursor:pointer;border-bottom:3px solid transparent;}
+  nav button.active{color:#fff;border-bottom:3px solid var(--teal);font-weight:600;}
+  main{max-width:920px;margin:0 auto;padding:14px 22px 50px;}
+  .tabpage{display:none;} .tabpage.active{display:block;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:14px;}
+  .card h2{margin:0 0 8px;font-size:14.5px;color:var(--navy);}
+  .card h3{margin:12px 0 6px;font-size:12.5px;color:var(--navy);}
+  label{display:block;font-size:11.5px;color:var(--muted);margin:8px 0 3px;font-weight:600;}
+  textarea,input[type=text],input[type=number],select{
+    width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:13.5px;font-family:inherit;
+  }
+  textarea{min-height:60px;resize:vertical;}
+  input.invalid, select.invalid, textarea.invalid{border-color:var(--red);background:var(--red-bg);}
+  .field-err{color:var(--red);font-size:11px;margin-top:2px;display:none;}
+  .field-err.show{display:block;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row > div{flex:1;min-width:150px;}
+  button.btn{background:var(--navy);color:#fff;border:none;padding:8px 14px;border-radius:5px;font-size:13px;cursor:pointer;}
+  button.btn:hover{background:var(--navy-dark);}
+  button.btn.secondary{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  button.btn.secondary:hover{background:var(--blue-bg);}
+  button.btn.small{padding:4px 9px;font-size:11.5px;}
+  button.btn.ghost{background:none;color:var(--muted);border:1px solid var(--border);}
+  .toggle-group{display:flex;gap:8px;margin-bottom:10px;}
+  .toggle-group button{flex:1;padding:8px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:5px;cursor:pointer;font-size:13px;}
+  .toggle-group button.active{background:var(--navy);color:#fff;}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);border:1px solid var(--teal);border-radius:14px;padding:3px 9px;font-size:12px;margin:2px 4px 2px 0;}
+  .chip button{background:none;border:none;color:var(--red);cursor:pointer;font-weight:bold;font-size:12px;line-height:1;}
+  .area-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;position:relative;}
+  .autocomplete-wrap{flex:1;position:relative;}
+  .autocomplete-list{position:absolute;z-index:20;background:#fff;border:1px solid var(--border);border-radius:5px;max-height:180px;overflow-y:auto;width:100%;box-shadow:0 4px 10px rgba(0,0,0,.08);}
+  .autocomplete-list div{padding:7px 9px;font-size:12.5px;cursor:pointer;border-bottom:1px solid #f0f0f0;}
+  .autocomplete-list div:hover{background:var(--blue-bg);}
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11.5px;font-weight:600;}
+  .badge.high{background:var(--green-bg);color:var(--green);}
+  .badge.medium{background:var(--amber-bg);color:var(--amber);}
+  .badge.low{background:var(--orange-bg);color:var(--orange);}
+  .badge.unable{background:var(--red-bg);color:var(--red);}
+  .badge.direct{background:#D9EAD3;color:#2E7D32;}
+  .badge.conservative{background:#CFE2F3;color:#1F4E5F;}
+  .badge.estimated{background:#FFF2CC;color:#8a6d00;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{text-align:left;padding:6px 7px;border-bottom:1px solid var(--border);vertical-align:top;}
+  th{background:#EFF3F4;font-size:10.5px;text-transform:uppercase;color:var(--muted);}
+  .results-top{border:1px solid var(--teal);background:#F1F8F8;border-radius:6px;padding:12px 14px;margin-top:10px;}
+  .ds-row{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;margin-bottom:8px;}
+  .ds-box{flex:1;min-width:140px;border-radius:6px;padding:8px 12px;}
+  .ds-box .label{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;font-weight:700;}
+  .ds-box .big{display:block;font-size:22px;font-weight:700;color:var(--navy);}
+  .ds-exact{background:#fff;border:1px solid var(--border);}
+  .ds-adjudicate{background:#FFF3CD;border:2px solid var(--amber);}
+  .ds-adjudicate .big{color:#7a5c00;}
+  details.calc-details{margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;}
+  details.calc-details summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--navy);}
+  .muted{color:var(--muted);font-size:11.5px;}
+  .search-bar{margin-bottom:10px;}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center;}
+  .modal-bg.active{display:flex;}
+  .modal{background:#fff;border-radius:8px;padding:18px 20px;width:400px;max-width:92vw;max-height:85vh;overflow-y:auto;}
+  .modal h3{margin-top:0;color:var(--navy);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
+  .warn-box{background:var(--red-bg);border:1px solid var(--red);color:#7a1a15;padding:9px 11px;border-radius:6px;font-size:12.5px;margin-top:8px;}
+  .info-box{background:var(--blue-bg);border:1px solid var(--teal);padding:9px 11px;border-radius:6px;font-size:12.5px;margin-top:8px;}
+  .footer-note{font-size:11px;color:var(--muted);margin-top:24px;text-align:center;}
+  .inline-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FTU Days' Supply Auditing Tool</h1>
+  <p>V-Care Pharmacy — PBM audit support | FTU reference: PAAS National + conservative rule-of-nines blend</p>
+</header>
+
+<div id="banner"></div>
+
+<nav>
+  <button class="tab-btn active" data-tab="calc">Calculate</button>
+  <button class="tab-btn" data-tab="lib">Application Area Library</button>
+  <button class="tab-btn" data-tab="meds">Medication Defaults</button>
+  <button class="tab-btn" data-tab="dsrules">DS Rounding Rules</button>
+  <button class="tab-btn" data-tab="hist">Recent History</button>
+</nav>
+
+<main>
+
+<!-- ============================================================= CALCULATE TAB ============================================================= -->
+<section id="tab-calc" class="tabpage active">
+
+  <div class="card">
+    <div class="toggle-group">
+      <button id="modeSigBtn" class="active" onclick="setMode('sig')">Paste Sig (soft search)</button>
+      <button id="modeManualBtn" onclick="setMode('manual')">Manual Entry</button>
+    </div>
+
+    <!-- ---- SIG MODE ---- -->
+    <div id="sigMode">
+      <label>Paste the prescription sig / directions</label>
+      <textarea id="sigText" placeholder="e.g. Apply to affected areas of face and scalp MWF for 2 weeks, then nightly"></textarea>
+      <div class="field-err" id="sigTextErr">Please paste the sig text.</div>
+      <div class="row" style="margin-top:6px;">
+        <div>
+          <label>Drug / Formulation (optional, for your records)</label>
+          <input type="text" id="sigDrugName" placeholder="e.g. Triamcinolone 0.1% cream">
+        </div>
+        <div>
+          <label>Package Qty Dispensed</label>
+          <div style="display:flex;gap:6px;">
+            <input type="number" id="sigQty" placeholder="e.g. 80">
+            <select id="sigUnit" style="width:80px;"><option>g</option><option>mL</option></select>
+          </div>
+          <div class="field-err" id="sigQtyErr">Enter the package quantity.</div>
+        </div>
+      </div>
+      <div class="inline-actions">
+        <button class="btn" onclick="parseSig()">Calculate from Sig</button>
+        <button class="btn ghost small" onclick="resetSigMode()">New Search</button>
+      </div>
+      <div id="sigParseResult"></div>
+    </div>
+
+    <!-- ---- MANUAL MODE ---- -->
+    <div id="manualMode" style="display:none;">
+      <div class="row">
+        <div>
+          <label>Drug / Formulation</label>
+          <input type="text" id="manDrugName" placeholder="e.g. Clobetasol 0.05% ointment">
+        </div>
+        <div>
+          <label>Package Qty Dispensed</label>
+          <div style="display:flex;gap:6px;">
+            <input type="number" id="manQty" placeholder="e.g. 60">
+            <select id="manUnit" style="width:80px;"><option>g</option><option>mL</option></select>
+          </div>
+          <div class="field-err" id="manQtyErr">Enter the package quantity.</div>
+        </div>
+      </div>
+
+      <label style="margin-top:12px;">
+        <input type="checkbox" id="noAreaCheck" onclick="toggleNoArea()"> No area of application specified — look up drug default instead
+      </label>
+
+      <div id="areaSection">
+        <h3>Areas of application</h3>
+        <div id="areaRows"></div>
+        <div class="field-err" id="areaErr">Select at least one area, or check "No area specified" above.</div>
+        <button class="btn secondary small" onclick="addAreaRow()">+ Add another area</button>
+
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label>Times per day</label>
+            <select id="manTimesPerDay">
+              <option value="1">1x/day (QD, QAM, QPM, QHS)</option>
+              <option value="2">2x/day (BID)</option>
+              <option value="3">3x/day (TID)</option>
+              <option value="4">4x/day (QID)</option>
+            </select>
+          </div>
+          <div>
+            <label>Days per week</label>
+            <select id="manDaysPerWeek" onchange="toggleCustomDays()">
+              <option value="7">7 — Daily / nightly</option>
+              <option value="5">5 — Weekdays only (M–F)</option>
+              <option value="3">3 — e.g. MWF</option>
+              <option value="3.5">3.5 — Every other day (QOD)</option>
+              <option value="2">2 — e.g. weekends / T-TH</option>
+              <option value="1">1 — Once weekly</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <input type="number" id="manDaysCustom" placeholder="days per week" style="display:none;margin-top:6px;">
+          </div>
+        </div>
+
+        <div class="inline-actions">
+          <button class="btn" onclick="calcManualAreas()">Calculate</button>
+          <button class="btn ghost small" onclick="resetManualMode()">New Search</button>
+        </div>
+      </div>
+
+      <div id="medDefaultSection" style="display:none;">
+        <h3>Look up medication default</h3>
+        <div class="autocomplete-wrap">
+          <input type="text" id="medDefaultSearch" placeholder="Start typing a drug name..." oninput="renderMedAutocomplete('medDefaultSearch','medAutocompleteList', selectMedManual)">
+          <div id="medAutocompleteList" class="autocomplete-list" style="display:none;"></div>
+        </div>
+        <div id="medDefaultChosen"></div>
+        <div class="inline-actions">
+          <button class="btn" onclick="calcMedDefault()" id="medDefaultCalcBtn" disabled>Calculate from Default</button>
+          <button class="btn ghost small" onclick="resetManualMode()">New Search</button>
+        </div>
+      </div>
+
+      <div id="manualResult"></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================================= APPLICATION AREA LIBRARY TAB ============================================================= -->
+<section id="tab-lib" class="tabpage">
+  <div class="card">
+    <h2>Application Area Library</h2>
+    <p class="muted">Green = PAAS-direct, unchanged. Blue = conservative blend (higher of PAAS vs. rule-of-nines). Yellow = estimated sub-region split.</p>
+    <div class="search-bar"><input type="text" id="libSearch" placeholder="Filter by name or alias..." oninput="renderLibTable()"></div>
+    <button class="btn" onclick="openAddBodyPart()">+ Add New Application Area</button>
+    <table style="margin-top:10px;">
+      <thead><tr><th>ID</th><th>Area</th><th>FTU</th><th>g/day QD</th><th>g/day BID</th><th>g/day TID</th><th>Type</th><th>Source / Reference</th><th>Updated</th><th></th></tr></thead>
+      <tbody id="libTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================= MEDICATION DEFAULTS TAB ============================================================= -->
+<section id="tab-meds" class="tabpage">
+  <div class="card">
+    <h2>Medication Defaults</h2>
+    <p class="muted">Used when a sig doesn't specify an application area — default package size and days' supply per drug.</p>
+    <div class="search-bar"><input type="text" id="medSearch" placeholder="Filter by drug name..." oninput="renderMedTable()"></div>
+    <button class="btn" onclick="openAddMedication()">+ Add Entry</button>
+    <table style="margin-top:10px;">
+      <thead><tr><th>ID</th><th>Drug Name</th><th>Package Size</th><th>Default Days' Supply</th><th>Notes</th><th>Updated</th><th></th></tr></thead>
+      <tbody id="medTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================= DS ROUNDING RULES TAB ============================================================= -->
+<section id="tab-dsrules" class="tabpage">
+  <div class="card">
+    <h2>DS Rounding Rules</h2>
+    <p class="muted">Controls how a calculated "Exact DS" maps to a standard "DS to Adjudicate" tier. Edits push to your Google Sheet and are logged with initials, date, and time.</p>
+    <button class="btn" onclick="openAddDsRule()">+ Add Tier</button>
+    <table style="margin-top:10px;">
+      <thead><tr><th>Description</th><th>Min DS</th><th>Max DS</th><th>Result DS</th><th>Last Updated By</th><th></th></tr></thead>
+      <tbody id="dsRulesTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================= HISTORY TAB ============================================================= -->
+<section id="tab-hist" class="tabpage">
+  <div class="card">
+    <h2>Recent Search / Calculation History</h2>
+    <button class="btn secondary small" onclick="loadData()">Refresh</button>
+    <table style="margin-top:10px;">
+      <thead><tr><th>Time</th><th>Initials</th><th>Drug</th><th>Qty</th><th>Areas</th><th>Freq</th><th>g/day</th><th>Exact DS</th><th>DS to Adjudicate</th><th>Confidence</th></tr></thead>
+      <tbody id="histTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<p class="footer-note">Estimates only — clinically review before relying on for audit defense. Reference data syncs live from your Google Sheet.</p>
+</main>
+
+<!-- ============================================================= MODALS ============================================================= -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — paste your deployed Apps Script Web App URL here
+   ===================================================================== */
+const API_URL = "https://script.google.com/macros/s/AKfycbxjtpR9zVoHwqVLF_pbD0_w6O3yqjIWeo_PfHXsP2OQoA6Pjq6BiSLQ47CMIfUxlNp8YQ/exec";
+
+let bodyParts = [];
+let medications = [];
+let searchHistory = [];
+let dsRules = [];
+let areaRowCount = 0;
+let areaSelections = {};
+let chosenMed = null;
+
+/* ---------------- Tab nav ---------------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tabpage').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+function setMode(mode){
+  document.getElementById('modeSigBtn').classList.toggle('active', mode==='sig');
+  document.getElementById('modeManualBtn').classList.toggle('active', mode==='manual');
+  document.getElementById('sigMode').style.display = mode==='sig' ? 'block':'none';
+  document.getElementById('manualMode').style.display = mode==='manual' ? 'block':'none';
+}
+
+function toggleCustomDays(){
+  const sel = document.getElementById('manDaysPerWeek');
+  document.getElementById('manDaysCustom').style.display = sel.value==='custom' ? 'block':'none';
+}
+
+/* ---------------- Data loading ---------------- */
+async function loadData(){
+  if(!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
+    showBanner('⚠️ Backend not connected. Paste your deployed Apps Script Web App URL into API_URL near the top of the &lt;script&gt;.');
+    return;
+  }
+  try {
+    const res = await fetch(API_URL + '?action=getData');
+    const data = await res.json();
+    if(data.error){ showBanner('Backend error: '+data.error); return; }
+    bodyParts = data.bodyParts || [];
+    medications = data.medications || [];
+    searchHistory = data.searchHistory || [];
+    dsRules = data.dsRules || [];
+    hideBanner();
+    renderLibTable(); renderMedTable(); renderHistTable(); renderDsRulesTable();
+    if(areaRowCount===0) addAreaRow();
+  } catch(err){
+    showBanner('Could not reach the backend (' + err + '). If this file is open as a local file://, some browsers block the request — try hosting it (e.g. GitHub Pages) instead.');
+  }
+}
+function showBanner(msg){ const b=document.getElementById('banner'); b.innerHTML=msg; b.style.display='block'; }
+function hideBanner(){ document.getElementById('banner').style.display='none'; }
+
+/* ---------------- Field validation helpers ---------------- */
+function setInvalid(fieldId, errId, isInvalid){
+  const f = document.getElementById(fieldId);
+  const e = document.getElementById(errId);
+  if(f) f.classList.toggle('invalid', isInvalid);
+  if(e) e.classList.toggle('show', isInvalid);
+}
+
+/* ---------------- Fuzzy helpers for application areas ---------------- */
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function matchBodyPartsInText(text){
+  const lower = text.toLowerCase();
+  const matchedIds = new Map();
+  bodyParts.forEach(bp=>{
+    const aliases = (bp.aliases||'').split(',').map(a=>a.trim()).filter(Boolean);
+    aliases.push(bp.name);
+    for(const alias of aliases){
+      if(alias.length < 3) continue;
+      const re = new RegExp('\\b'+escapeRegex(alias.toLowerCase())+'\\b');
+      if(re.test(lower)){
+        if(!matchedIds.has(bp.id) || alias.length > matchedIds.get(bp.id).matchedAlias.length){
+          matchedIds.set(bp.id, {row: bp, matchedAlias: alias});
+        }
+        break;
+      }
+    }
+  });
+  return Array.from(matchedIds.values());
+}
+
+/* ---------------- Frequency parsing: times/day + days/week are separate ---------------- */
+function timesPerDayCandidates(text){
+  const t = text.toLowerCase();
+  const candidates = [];
+  const push = (re,val) => { if(re.test(t)) candidates.push(val); };
+  push(/\bqid\b/,4); push(/\bfour times ?(a |per )?(day|daily)\b/,4); push(/\b4 ?x ?(a |per )?(day|daily)\b/,4);
+  push(/\btid\b/,3); push(/\bthree times ?(a |per )?(day|daily)\b/,3); push(/\b3 ?x ?(a |per )?(day|daily)\b/,3);
+  push(/\bbid\b/,2); push(/\btwice ?(a |per )?(day|daily)\b/,2); push(/\btwo times ?(a |per )?(day|daily)\b/,2); push(/\b2 ?x ?(a |per )?(day|daily)\b/,2);
+  push(/\bq\.?a\.?m\.?\b/,1); push(/\bq\.?p\.?m\.?\b/,1); push(/\bq\.?h\.?s\.?\b/,1); push(/\bnightly\b/,1);
+  push(/\bevery (night|morning|evening)\b/,1); push(/\bat bedtime\b/,1);
+  push(/\bonce ?(a |per )?(day|daily)\b/,1); push(/\bq\.?d\.?\b/,1); push(/\bdaily\b/,1);
+  return candidates;
+}
+function daysPerWeekCandidates(text){
+  const t = text.toLowerCase();
+  const candidates = [];
+  const numWeekRe = /(\d+)\s*(?:x|times)\s*(?:a|per|\/|-)?\s*week/g;
+  let m;
+  while((m = numWeekRe.exec(t))){ candidates.push(parseInt(m[1],10)); }
+  const combos = [
+    {re:/\bm(on(day)?)?[\s,\/-]*w(ed(nesday)?)?[\s,\/-]*f(ri(day)?)?\b/, val:3},
+    {re:/\bt(u(es(day)?)?)?[\s,\/-]*th(u(rs(day)?)?)?\b/, val:2},
+    {re:/\bmonday( through| to|-)? friday\b/, val:5},
+    {re:/\bweekdays?( only)?\b/, val:5},
+    {re:/\bm-?f\b/, val:5},
+    {re:/\bweekends?( only)?\b/, val:2},
+    {re:/\bsat(urday)?[\s,\/-]*(and)?[\s,\/-]*sun(day)?\b/, val:2},
+  ];
+  combos.forEach(c=>{ if(c.re.test(t)) candidates.push(c.val); });
+  if(/\bevery other day\b|\bqod\b/.test(t)) candidates.push(3.5);
+  if(/\bonce ?(a |per )?week(ly)?\b/.test(t)) candidates.push(1);
+  if(/\btwice ?(a |per )?week(ly)?\b/.test(t)) candidates.push(2);
+  if(/\bthree times ?(a |per )?week(ly)?\b/.test(t)) candidates.push(3);
+  if(/\bdaily\b|\beveryday\b|\bevery day\b|\bnightly\b/.test(t)) candidates.push(7);
+  return candidates;
+}
+function parseFrequency(text){
+  const timesCandidates = timesPerDayCandidates(text);
+  const daysCandidates = daysPerWeekCandidates(text);
+  const timesFound = timesCandidates.length>0;
+  const daysFound = daysCandidates.length>0;
+  const timesPerDay = timesFound ? Math.max(...timesCandidates) : 1;
+  const daysPerWeek = daysFound ? Math.max(...daysCandidates) : 7;
+  const titration = (new Set(timesCandidates)).size>1 || (new Set(daysCandidates)).size>1;
+  return {timesPerDay, daysPerWeek, timesFound, daysFound, titration};
+}
+
+/* ---------------- Confidence scoring ---------------- */
+function scoreConfidence(areaCount, timesFound, daysFound){
+  if(areaCount===0) return {level:'unable', label:'Unable to Calculate'};
+  const foundCount = (timesFound?1:0) + (daysFound?1:0);
+  if(foundCount===2 && areaCount<=3) return {level:'high', label:'High Confidence'};
+  if(foundCount>=1 && areaCount<=4) return {level:'medium', label:'Medium Confidence'};
+  return {level:'low', label:'Low Confidence'};
+}
+
+/* ---------------- DS adjudication ---------------- */
+function adjudicateDS(ds){
+  if(ds===null || ds===undefined || isNaN(ds)) return null;
+  const sorted = [...dsRules].sort((a,b)=>Number(a.minDS)-Number(b.minDS));
+  if(sorted.length===0) return ds;
+  for(const r of sorted){
+    const min = Number(r.minDS);
+    const max = (r.maxDS==='' || r.maxDS===null || r.maxDS===undefined) ? Infinity : Number(r.maxDS);
+    if(ds>=min && ds<max) return Number(r.resultDS);
+  }
+  if(ds < Number(sorted[0].minDS)) return Number(sorted[0].resultDS);
+  return Number(sorted[sorted.length-1].resultDS);
+}
+
+/* ---------------- Shared results renderer ---------------- */
+function renderResultBlock(container, opts){
+  // opts: {areasDisplay, freqDisplay, timesFound, daysFound, titration, exactDS, gramsPerDay, mathNote, confidence, logCallbackArgs}
+  const c = opts.confidence;
+  let html = `<div class="results-top">
+    <div class="ds-row">
+      <div class="ds-box ds-exact"><span class="label">Exact DS</span><span class="big">${opts.exactDS!==null ? opts.exactDS+' days' : '—'}</span></div>
+      <div class="ds-box ds-adjudicate"><span class="label">DS to Adjudicate</span><span class="big">${opts.exactDS!==null ? adjudicateDS(opts.exactDS)+' days' : '—'}</span></div>
+    </div>
+    <span class="badge ${c.level}">${c.label}</span>`;
+  if(c.level==='low' || c.level==='unable'){
+    html += `<div class="warn-box">This entry could not be confidently parsed for area, frequency, and/or days-per-week.
+      Please clarify the prescription directions, or verify/complete the entry via Manual Entry.</div>`;
+  }
+  html += `<details class="calc-details"><summary>Calculation Details ▸</summary>
+    <p><strong>Areas:</strong> ${opts.areasDisplay}</p>
+    <p><strong>Frequency:</strong> ${opts.freqDisplay}
+      ${opts.titration ? '<br><span class="muted">Titration / variable frequency detected in the sig — using the maximum frequency found for a conservative estimate.</span>' : ''}</p>
+    <p class="muted">${opts.mathNote}</p>
+    <p class="muted">${confidenceExplain(opts)}</p>`;
+  if(opts.exactDS!==null){
+    html += `<label>Your initials (to log this calculation)</label>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div><input type="text" id="${opts.initialsFieldId}" style="max-width:110px;"><div class="field-err" id="${opts.initialsFieldId}Err">Initials required.</div></div>
+        <button class="btn small" onclick='saveCalcHistory(${JSON.stringify(opts.logArgs)}, "${opts.initialsFieldId}")'>Save Calculation History</button>
+      </div>`;
+  }
+  html += `</details></div>`;
+  container.innerHTML = html;
+}
+function confidenceExplain(opts){
+  const parts = [];
+  parts.push(opts.timesFound===undefined ? '' : (opts.timesFound ? 'times/day explicit in sig' : 'times/day not explicit — assumed'));
+  parts.push(opts.daysFound===undefined ? '' : (opts.daysFound ? 'days/week explicit in sig' : 'days/week not explicit — assumed'));
+  return parts.filter(Boolean).join(', ') + '.';
+}
+
+/* ---------------- Sig parsing flow ---------------- */
+function parseSig(){
+  const text = document.getElementById('sigText').value.trim();
+  const resultDiv = document.getElementById('sigParseResult');
+  setInvalid('sigText','sigTextErr', !text);
+  if(!text){ resultDiv.innerHTML=''; return; }
+
+  const matches = matchBodyPartsInText(text);
+  const qty = parseFloat(document.getElementById('sigQty').value);
+  setInvalid('sigQty','sigQtyErr', !qty);
+
+  if(matches.length===0){
+    resultDiv.innerHTML = `<div class="warn-box"><strong>Unable to determine application area(s) directly from this sig.</strong>
+      No recognizable body-part terms were found.</div>
+      <div class="inline-actions">
+        <button class="btn secondary small" onclick="jumpToManual()">Switch to Manual Entry</button>
+      </div>
+      <div class="info-box">
+        <strong>Or look up a drug default instead:</strong>
+        <div class="autocomplete-wrap" style="margin-top:6px;">
+          <input type="text" id="sigInlineMedSearch" placeholder="Start typing a drug name..." oninput="renderMedAutocomplete('sigInlineMedSearch','sigInlineMedList', selectMedInline)">
+          <div id="sigInlineMedList" class="autocomplete-list" style="display:none;"></div>
+        </div>
+        <div id="sigInlineMedChosen"></div>
+      </div>`;
+    return;
+  }
+  if(!qty) return;
+
+  const freq = parseFrequency(text);
+  const totalFTU = matches.reduce((s,m)=>s+Number(m.row.ftu),0);
+  const gramsPerApp = totalFTU*0.5;
+  const perDayAvg = freq.timesPerDay * freq.daysPerWeek / 7;
+  const gramsPerDay = gramsPerApp*perDayAvg;
+  const exactDSraw = qty/gramsPerDay;
+  const exactDS = Math.floor(exactDSraw);
+  const unit = document.getElementById('sigUnit').value;
+  const drugName = document.getElementById('sigDrugName').value;
+
+  const conf = scoreConfidence(matches.length, freq.timesFound, freq.daysFound);
+  const areasDisplay = matches.map(m=>`<span class="chip">${m.row.name} <span class="muted">("${m.matchedAlias}")</span></span>`).join('');
+  const freqDisplay = `${freq.timesPerDay}x/day ${freq.timesFound?'':'(assumed)'} &times; ${freq.daysPerWeek}/7 days ${freq.daysFound?'':'(assumed)'}`;
+  const mathNote = `${totalFTU} total FTU &times; 0.5 g = ${gramsPerApp.toFixed(2)} g/application &times; ${perDayAvg.toFixed(2)} avg applications/day = ${gramsPerDay.toFixed(2)} g/day. ${qty} ${unit} &divide; ${gramsPerDay.toFixed(2)} g/day = ${exactDSraw.toFixed(2)} days, floored to ${exactDS}.`;
+
+  renderResultBlock(resultDiv, {
+    areasDisplay, freqDisplay, timesFound:freq.timesFound, daysFound:freq.daysFound, titration:freq.titration,
+    exactDS, gramsPerDay, mathNote, confidence:conf, initialsFieldId:'sigLogInitials',
+    logArgs: {drug:drugName, packageQty:qty+' '+unit, areas:matches.map(m=>m.row.name).join('; '),
+      frequency:freqDisplay.replace(/<[^>]+>/g,''), gramsPerDay:gramsPerDay.toFixed(2), exactDS, confidence:conf.label}
+  });
+}
+function jumpToManual(){ setMode('manual'); }
+function selectMedInline(m){
+  document.getElementById('sigInlineMedChosen').innerHTML =
+    `<div class="info-box">Default: <strong>${m.packageSize}</strong> package &rarr; <strong>${m.defaultDaysSupply}-day</strong> supply. ${m.notes?('Notes: '+m.notes):''}
+     <div class="inline-actions"><button class="btn small" onclick='renderMedDefaultResult(document.getElementById("sigParseResult"), ${JSON.stringify(m)})'>Use This Default</button></div></div>`;
+}
+function renderMedDefaultResult(container, m){
+  const exactDS = Number(m.defaultDaysSupply);
+  const conf = {level:'medium', label:'Medium Confidence (default lookup, no sig-specific area)'};
+  renderResultBlock(container, {
+    areasDisplay:'No area specified (default lookup)', freqDisplay:'—', exactDS, mathNote:`Pulled directly from Medication_Defaults: ${m.name}.`,
+    confidence:conf, initialsFieldId:'medLogInitials'+Math.floor(Math.random()*10000),
+    logArgs:{drug:m.name, packageQty:m.packageSize, areas:'No area specified (default lookup)', frequency:'—', gramsPerDay:'', exactDS, confidence:conf.label}
+  });
+}
+
+/* ---------------- Manual entry: areas ---------------- */
+function toggleNoArea(){
+  const checked = document.getElementById('noAreaCheck').checked;
+  document.getElementById('areaSection').style.display = checked ? 'none':'block';
+  document.getElementById('medDefaultSection').style.display = checked ? 'block':'none';
+}
+function addAreaRow(){
+  areaRowCount++;
+  const idx = areaRowCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'area-row';
+  wrap.id = 'areaRow'+idx;
+  wrap.innerHTML = `
+    <div class="autocomplete-wrap">
+      <input type="text" placeholder="Area ${idx} — start typing e.g. scalp" oninput="renderAreaAutocomplete(${idx})" id="areaInput${idx}">
+      <div class="autocomplete-list" style="display:none;" id="areaList${idx}"></div>
+      <div id="areaNotFound${idx}"></div>
+    </div>
+    <button class="btn secondary small" onclick="removeAreaRow(${idx})">✕</button>`;
+  document.getElementById('areaRows').appendChild(wrap);
+}
+function removeAreaRow(idx){
+  document.getElementById('areaRow'+idx)?.remove();
+  delete areaSelections[idx];
+}
+function renderAreaAutocomplete(idx){
+  const q = document.getElementById('areaInput'+idx).value.trim().toLowerCase();
+  const listEl = document.getElementById('areaList'+idx);
+  const notFoundEl = document.getElementById('areaNotFound'+idx);
+  delete areaSelections[idx];
+  notFoundEl.innerHTML='';
+  if(q.length<2){ listEl.style.display='none'; return; }
+  const matches = bodyParts.filter(bp=>(bp.name+','+(bp.aliases||'')).toLowerCase().includes(q)).slice(0,8);
+  if(matches.length===0){
+    listEl.style.display='none';
+    notFoundEl.innerHTML = `<div class="muted" style="margin-top:4px;">No match found for "${q}". <a href="#" onclick="openAddBodyPart('${q.replace(/'/g,"\\'")}'); return false;">Add new reference?</a></div>`;
+    return;
+  }
+  listEl.innerHTML = matches.map(bp=>`<div onclick="selectArea(${idx},'${bp.id}')">${bp.name} <span class="muted">(${bp.ftu} FTU)</span></div>`).join('');
+  listEl.style.display='block';
+}
+function selectArea(idx, bpId){
+  const bp = bodyParts.find(b=>b.id===bpId);
+  areaSelections[idx] = bp;
+  document.getElementById('areaInput'+idx).value = bp.name;
+  document.getElementById('areaList'+idx).style.display='none';
+}
+
+function calcManualAreas(){
+  const resultDiv = document.getElementById('manualResult');
+  const selected = Object.values(areaSelections);
+  setInvalid('areaRows','areaErr', selected.length===0);
+  const qty = parseFloat(document.getElementById('manQty').value);
+  setInvalid('manQty','manQtyErr', !qty);
+  if(selected.length===0 || !qty) return;
+
+  const unit = document.getElementById('manUnit').value;
+  const drugName = document.getElementById('manDrugName').value;
+  const timesPerDay = Number(document.getElementById('manTimesPerDay').value);
+  const daysSel = document.getElementById('manDaysPerWeek');
+  const daysPerWeek = daysSel.value==='custom' ? Number(document.getElementById('manDaysCustom').value||7) : Number(daysSel.value);
+
+  const totalFTU = selected.reduce((s,bp)=>s+Number(bp.ftu),0);
+  const gramsPerApp = totalFTU*0.5;
+  const perDayAvg = timesPerDay*daysPerWeek/7;
+  const gramsPerDay = gramsPerApp*perDayAvg;
+  const exactDSraw = qty/gramsPerDay;
+  const exactDS = Math.floor(exactDSraw);
+
+  const conf = selected.length<=4 ? {level:'high', label:'High Confidence (manually specified)'} : {level:'medium', label:'Medium Confidence (many areas specified — double-check)'};
+  const areasDisplay = selected.map(bp=>`<span class="chip">${bp.name}</span>`).join('');
+  const freqDisplay = `${timesPerDay}x/day &times; ${daysPerWeek}/7 days (manually specified)`;
+  const mathNote = `${totalFTU} total FTU &times; 0.5 g = ${gramsPerApp.toFixed(2)} g/application &times; ${perDayAvg.toFixed(2)} avg applications/day = ${gramsPerDay.toFixed(2)} g/day. ${qty} ${unit} &divide; ${gramsPerDay.toFixed(2)} g/day = ${exactDSraw.toFixed(2)} days, floored to ${exactDS}.`;
+
+  renderResultBlock(resultDiv, {
+    areasDisplay, freqDisplay, timesFound:true, daysFound:true, titration:false,
+    exactDS, gramsPerDay, mathNote, confidence:conf, initialsFieldId:'manLogInitials',
+    logArgs:{drug:drugName, packageQty:qty+' '+unit, areas:selected.map(bp=>bp.name).join('; '), frequency:freqDisplay.replace(/<[^>]+>/g,''), gramsPerDay:gramsPerDay.toFixed(2), exactDS, confidence:conf.label}
+  });
+}
+
+/* ---------------- Manual entry: medication default lookup ---------------- */
+function renderMedAutocomplete(inputId, listId, onSelect){
+  const q = document.getElementById(inputId).value.trim().toLowerCase();
+  const listEl = document.getElementById(listId);
+  if(q.length<2){ listEl.style.display='none'; return; }
+  const matches = medications.filter(m=>(m.name+','+(m.aliases||'')).toLowerCase().includes(q)).slice(0,8);
+  if(matches.length===0){
+    listEl.innerHTML = `<div class="muted">No match. <a href="#" onclick="openAddMedication('${q.replace(/'/g,"\\'")}'); return false;">Add new medication entry?</a></div>`;
+    listEl.style.display='block';
+    return;
+  }
+  listEl.innerHTML = matches.map(m=>`<div data-id="${m.id}">${m.name} <span class="muted">(${m.packageSize} / ${m.defaultDaysSupply} days)</span></div>`).join('');
+  listEl.querySelectorAll('div[data-id]').forEach(div=>{
+    div.onclick = ()=>{ const m = medications.find(x=>x.id===div.dataset.id); listEl.style.display='none'; document.getElementById(inputId).value=m.name; onSelect(m); };
+  });
+  listEl.style.display='block';
+}
+function selectMedManual(m){
+  chosenMed = m;
+  document.getElementById('medDefaultChosen').innerHTML =
+    `<div class="info-box">Default: <strong>${m.packageSize}</strong> package &rarr; <strong>${m.defaultDaysSupply}-day</strong> supply. ${m.notes?('Notes: '+m.notes):''}</div>`;
+  document.getElementById('medDefaultCalcBtn').disabled = false;
+}
+function calcMedDefault(){
+  if(!chosenMed) return;
+  renderMedDefaultResult(document.getElementById('manualResult'), chosenMed);
+}
+
+/* ---------------- Save calculation to Search_History ---------------- */
+async function saveCalcHistory(logArgs, initialsFieldId){
+  const initials = document.getElementById(initialsFieldId).value.trim();
+  setInvalid(initialsFieldId, initialsFieldId+'Err', !initials);
+  if(!initials) return;
+  try{
+    await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+      action:'logSearch', initials, drug:logArgs.drug, packageQty:logArgs.packageQty, areas:logArgs.areas,
+      frequency:logArgs.frequency, gramsPerDay:logArgs.gramsPerDay,
+      daysSupply: logArgs.exactDS+' (adjudicate: '+adjudicateDS(logArgs.exactDS)+')', confidence:logArgs.confidence
+    })});
+    alert('Saved to calculation history.');
+    loadData();
+  } catch(err){ alert('Could not save to the sheet: '+err); }
+}
+
+/* ---------------- New Search resets ---------------- */
+function resetSigMode(){
+  document.getElementById('sigText').value='';
+  document.getElementById('sigDrugName').value='';
+  document.getElementById('sigQty').value='';
+  document.getElementById('sigParseResult').innerHTML='';
+  setInvalid('sigText','sigTextErr',false);
+  setInvalid('sigQty','sigQtyErr',false);
+}
+function resetManualMode(){
+  document.getElementById('manDrugName').value='';
+  document.getElementById('manQty').value='';
+  document.getElementById('noAreaCheck').checked=false;
+  toggleNoArea();
+  document.getElementById('areaRows').innerHTML='';
+  areaSelections = {}; areaRowCount = 0; addAreaRow();
+  document.getElementById('manTimesPerDay').value='1';
+  document.getElementById('manDaysPerWeek').value='7';
+  document.getElementById('manDaysCustom').value=''; document.getElementById('manDaysCustom').style.display='none';
+  document.getElementById('manualResult').innerHTML='';
+  document.getElementById('medDefaultSearch').value='';
+  document.getElementById('medDefaultChosen').innerHTML='';
+  document.getElementById('medDefaultCalcBtn').disabled=true;
+  chosenMed = null;
+  setInvalid('manQty','manQtyErr',false);
+  setInvalid('areaRows','areaErr',false);
+}
+
+/* ---------------- Library table ---------------- */
+function renderLibTable(){
+  const q = (document.getElementById('libSearch')?.value||'').toLowerCase();
+  const tbody = document.getElementById('libTableBody');
+  tbody.innerHTML = bodyParts
+    .filter(bp=> !q || (bp.name+bp.aliases).toLowerCase().includes(q))
+    .map(bp=>`<tr>
+      <td>${bp.id}</td><td>${bp.name}</td><td>${bp.ftu}</td>
+      <td>${Number(bp.gramsQD).toFixed(2)}</td><td>${Number(bp.gramsBID).toFixed(2)}</td><td>${Number(bp.gramsTID).toFixed(2)}</td>
+      <td><span class="badge ${bp.dataType.toLowerCase()}">${bp.dataType}</span></td>
+      <td class="muted">${bp.sourceRef}</td>
+      <td class="muted">${fmtDate(bp.lastUpdated)}<br>${bp.updatedBy||''}</td>
+      <td><button class="btn secondary small" onclick="openEditBodyPart('${bp.id}')">Edit</button></td>
+    </tr>`).join('');
+}
+
+/* ---------------- Medication table ---------------- */
+function renderMedTable(){
+  const q = (document.getElementById('medSearch')?.value||'').toLowerCase();
+  const tbody = document.getElementById('medTableBody');
+  tbody.innerHTML = medications
+    .filter(m=> !q || (m.name+m.aliases).toLowerCase().includes(q))
+    .map(m=>`<tr>
+      <td>${m.id}</td><td>${m.name}</td><td>${m.packageSize}</td><td>${m.defaultDaysSupply}</td>
+      <td class="muted">${m.notes||''}</td>
+      <td class="muted">${fmtDate(m.lastUpdated)}<br>${m.updatedBy||''}</td>
+      <td><button class="btn secondary small" onclick="openEditMedication('${m.id}')">Edit</button></td>
+    </tr>`).join('');
+}
+
+/* ---------------- DS Rules table ---------------- */
+function renderDsRulesTable(){
+  const tbody = document.getElementById('dsRulesTableBody');
+  tbody.innerHTML = [...dsRules].sort((a,b)=>Number(a.minDS)-Number(b.minDS)).map(r=>`<tr>
+    <td>${r.description}</td><td>${r.minDS}</td><td>${r.maxDS===''?'(no max)':r.maxDS}</td><td><strong>${r.resultDS}</strong></td>
+    <td class="muted">${fmtDate(r.lastUpdated)}<br>${r.updatedBy||''}</td>
+    <td><button class="btn secondary small" onclick="openEditDsRule('${r.id}')">Edit</button></td>
+  </tr>`).join('');
+}
+
+/* ---------------- History table ---------------- */
+function renderHistTable(){
+  const tbody = document.getElementById('histTableBody');
+  tbody.innerHTML = searchHistory.map(h=>{
+    const parts = String(h.daysSupply||'').match(/^([\d.]+)\s*\(adjudicate:\s*([\d.]+)\)$/);
+    const exact = parts ? parts[1] : h.daysSupply;
+    const adj = parts ? parts[2] : '';
+    return `<tr>
+    <td class="muted">${fmtDate(h.timestamp)}</td><td>${h.initials}</td><td>${h.drug}</td><td>${h.packageQty}</td>
+    <td>${h.areas}</td><td>${h.frequency}</td><td>${h.gramsPerDay}</td><td>${exact}</td><td>${adj}</td><td>${h.confidence}</td>
+  </tr>`;}).join('');
+}
+
+function fmtDate(v){
+  if(!v) return '';
+  const d = new Date(v);
+  if(isNaN(d)) return v;
+  return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+/* ---------------- Modals: Add/Edit Application Area ---------------- */
+function openAddBodyPart(prefillName){
+  document.getElementById('modalBody').innerHTML = `
+    <h3>Add New Application Area Reference</h3>
+    <label>Area Name</label><input type="text" id="mAddName" value="${prefillName||''}">
+    <label>Search Aliases (comma-separated)</label><input type="text" id="mAddAliases">
+    <label>Estimated FTU Count</label><input type="number" step="0.01" id="mAddFtu">
+    <label>Notes / basis for estimate</label><input type="text" id="mAddNotes">
+    <label>Your Initials</label><input type="text" id="mAddInitials">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitAddBodyPart()">Add & Push to Sheet</button>
+    </div>`;
+  openModal();
+}
+async function submitAddBodyPart(){
+  const name = document.getElementById('mAddName').value.trim();
+  const ftu = document.getElementById('mAddFtu').value;
+  const initials = document.getElementById('mAddInitials').value.trim();
+  if(!name || !ftu || !initials){ alert('Name, FTU, and initials are required.'); return; }
+  await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+    action:'addBodyPart', name, aliases: document.getElementById('mAddAliases').value,
+    ftu, dataType:'Estimated', sourceRef: document.getElementById('mAddNotes').value, initials
+  })});
+  closeModal(); await loadData();
+}
+function openEditBodyPart(id){
+  const bp = bodyParts.find(b=>b.id===id);
+  document.getElementById('modalBody').innerHTML = `
+    <h3>Edit ${bp.name}</h3>
+    <label>Field to change</label>
+    <select id="mEditField">
+      <option value="name">Name</option><option value="aliases">Aliases</option>
+      <option value="ftu">FTU Count</option><option value="dataType">Data Type</option><option value="sourceRef">Source/Reference</option>
+    </select>
+    <label>New Value</label><input type="text" id="mEditValue">
+    <label>Reason for change</label><input type="text" id="mEditReason">
+    <label>Your Initials</label><input type="text" id="mEditInitials">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitEditBodyPart('${id}')">Save & Log Change</button>
+    </div>`;
+  openModal();
+}
+async function submitEditBodyPart(id){
+  const field = document.getElementById('mEditField').value;
+  const newValue = document.getElementById('mEditValue').value.trim();
+  const initials = document.getElementById('mEditInitials').value.trim();
+  if(!newValue || !initials){ alert('New value and initials are required.'); return; }
+  await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+    action:'editBodyPart', id, field, newValue, reason: document.getElementById('mEditReason').value, initials
+  })});
+  closeModal(); await loadData();
+}
+
+/* ---------------- Modals: Add/Edit Medication ---------------- */
+function openAddMedication(prefillName){
+  document.getElementById('modalBody').innerHTML = `
+    <h3>Add Medication Default</h3>
+    <label>Drug Name</label><input type="text" id="mMedName" value="${prefillName||''}">
+    <label>Search Aliases (comma-separated)</label><input type="text" id="mMedAliases">
+    <label>Default Package Size</label><input type="text" id="mMedPkg" placeholder="e.g. 60g">
+    <label>Default Days' Supply</label><input type="number" id="mMedDays">
+    <label>Notes</label><input type="text" id="mMedNotes">
+    <label>Your Initials</label><input type="text" id="mMedInitials">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitAddMedication()">Add & Push to Sheet</button>
+    </div>`;
+  openModal();
+}
+async function submitAddMedication(){
+  const name = document.getElementById('mMedName').value.trim();
+  const pkg = document.getElementById('mMedPkg').value.trim();
+  const days = document.getElementById('mMedDays').value;
+  const initials = document.getElementById('mMedInitials').value.trim();
+  if(!name || !pkg || !days || !initials){ alert('Drug name, package size, days supply, and initials are required.'); return; }
+  await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+    action:'addMedication', name, aliases: document.getElementById('mMedAliases').value,
+    packageSize: pkg, defaultDaysSupply: days, notes: document.getElementById('mMedNotes').value, initials
+  })});
+  closeModal(); await loadData();
+}
+function openEditMedication(id){
+  const m = medications.find(x=>x.id===id);
+  document.getElementById('modalBody').innerHTML = `
+    <h3>Edit ${m.name}</h3>
+    <label>Field to change</label>
+    <select id="mMedEditField">
+      <option value="name">Drug Name</option><option value="aliases">Aliases</option>
+      <option value="packageSize">Package Size</option><option value="defaultDaysSupply">Default Days' Supply</option>
+      <option value="notes">Notes</option>
+    </select>
+    <label>New Value</label><input type="text" id="mMedEditValue">
+    <label>Your Initials</label><input type="text" id="mMedEditInitials">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitEditMedication('${id}')">Save & Log Change</button>
+    </div>`;
+  openModal();
+}
+async function submitEditMedication(id){
+  const field = document.getElementById('mMedEditField').value;
+  const newValue = document.getElementById('mMedEditValue').value.trim();
+  const initials = document.getElementById('mMedEditInitials').value.trim();
+  if(!newValue || !initials){ alert('New value and initials are required.'); return; }
+  await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+    action:'editMedication', id, field, newValue, initials
+  })});
+  closeModal(); await loadData();
+}
+
+/* ---------------- Modals: Add/Edit DS Rounding Rule ---------------- */
+function openAddDsRule(){
+  document.getElementById('modalBody').innerHTML = `
+    <h3>Add DS Rounding Tier</h3>
+    <label>Description</label><input type="text" id="mDsDesc" placeholder="e.g. 90 to under 120">
+    <label>Min DS (inclusive)</label><input type="number" id="mDsMin">
+    <label>Max DS (exclusive, leave blank for no max)</label><input type="number" id="mDsMax">
+    <label>Result DS (adjudicated value)</label><input type="number" id="mDsResult">
+    <label>Your Initials</label><input type="text" id="mDsInitials">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitAddDsRule()">Add & Push to Sheet</button>
+    </div>`;
+  openModal();
+}
+async function submitAddDsRule(){
+  const description = document.getElementById('mDsDesc').value.trim();
+  const minDS = document.getElementById('mDsMin').value;
+  const maxDS = document.getElementById('mDsMax').value;
+  const resultDS = document.getElementById('mDsResult').value;
+  const initials = document.getElementById('mDsInitials').value.trim();
+  if(!description || minDS==='' || resultDS==='' || !initials){ alert('Description, min DS, result DS, and initials are required.'); return; }
+  await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+    action:'addDsRule', description, minDS, maxDS, resultDS, initials
+  })});
+  closeModal(); await loadData();
+}
+function openEditDsRule(id){
+  const r = dsRules.find(x=>x.id===id);
+  document.getElementById('modalBody').innerHTML = `
+    <h3>Edit DS Rule: ${r.description}</h3>
+    <label>Field to change</label>
+    <select id="mDsEditField">
+      <option value="description">Description</option>
+      <option value="minDS">Min DS (inclusive)</option>
+      <option value="maxDS">Max DS (exclusive)</option>
+      <option value="resultDS">Result DS</option>
+    </select>
+    <label>New Value</label><input type="text" id="mDsEditValue">
+    <label>Your Initials</label><input type="text" id="mDsEditInitials">
+    <p class="muted">This change is logged to Change_Log with your initials, date, and time.</p>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="submitEditDsRule('${id}')">Save & Log Change</button>
+    </div>`;
+  openModal();
+}
+async function submitEditDsRule(id){
+  const field = document.getElementById('mDsEditField').value;
+  const newValue = document.getElementById('mDsEditValue').value.trim();
+  const initials = document.getElementById('mDsEditInitials').value.trim();
+  if(newValue==='' || !initials){ alert('New value and initials are required.'); return; }
+  await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({
+    action:'editDsRule', id, field, newValue, initials
+  })});
+  closeModal(); await loadData();
+}
+
+function openModal(){ document.getElementById('modalBg').classList.add('active'); }
+function closeModal(){ document.getElementById('modalBg').classList.remove('active'); }
+
+loadData();
+</script>
+</body>
+</html>
